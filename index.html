@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>برنامج التمارين الأسبوعي</title>
+<style>
+  :root{
+    --ink:#17171b;
+    --paper:#201f24;
+    --paper-2:#29282e;
+    --line:#34333a;
+    --chalk:#eeeceb;
+    --chalk-dim:#9a97a0;
+    --chalk-dimmer:#6d6a72;
+    --good:#6f9159;
+    --font-body:'Segoe UI', Tahoma, 'Noto Sans Arabic', system-ui, -apple-system, Arial, sans-serif;
+    --font-mono:ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Consolas, monospace;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--chalk);
+    font-family:var(--font-body);
+    direction:rtl;
+    font-size:15px;
+    line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{ max-width:640px; margin:0 auto; padding:18px 16px 48px; }
+  .loading{ text-align:center; padding:80px 16px; color:var(--chalk-dim); font-size:14px; }
+
+  header{ text-align:center; margin-bottom:16px; }
+  header h1{ font-size:21px; font-weight:800; letter-spacing:.2px; margin:0 0 4px; }
+  header p{ font-size:12.5px; color:var(--chalk-dim); margin:0; }
+
+  .tabs{
+    display:flex; gap:6px;
+    background:var(--paper); border:1px solid var(--line);
+    border-radius:14px; padding:4px; margin-bottom:16px;
+    position:sticky; top:8px; z-index:10;
+  }
+  .tab{
+    flex:1; background:transparent; border:none; color:var(--chalk-dim);
+    padding:10px 4px; border-radius:10px; font-size:12.5px; font-family:inherit;
+    cursor:pointer;
+  }
+  .tab.active{ background:var(--paper-2); color:var(--chalk); font-weight:700; }
+  .tab-content{ display:none; }
+  .tab-content.active{ display:block; }
+
+  .day-card{
+    background:var(--paper); border:1px solid var(--line);
+    border-radius:16px; padding:16px; margin-bottom:12px;
+    border-right:4px solid var(--accent,#555);
+  }
+  .day-card-header{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  .day-name{ font-size:17px; font-weight:800; }
+  .day-meta{ display:flex; align-items:center; gap:7px; }
+  .day-badge{
+    font-size:11px; font-weight:700; color:var(--accent,#999);
+    border:1.5px solid var(--accent,#999); padding:2px 9px; border-radius:999px;
+    white-space:nowrap;
+  }
+  .intensity-label{ font-size:10px; color:var(--chalk-dimmer); }
+  .intensity{ display:flex; gap:3px; }
+  .dot{ width:6px; height:6px; border-radius:50%; border:1.5px solid var(--line); display:inline-block; }
+  .dot.filled{ background:var(--accent,#999); border-color:var(--accent,#999); }
+
+  .day-title{ color:var(--chalk); font-size:14px; font-weight:600; margin-top:8px; }
+  .day-note{
+    font-size:12px; color:var(--chalk-dimmer); margin-top:6px; line-height:1.6;
+    border-right:2px solid var(--line); padding-right:8px;
+  }
+
+  .sched-body{ margin-top:10px; }
+  .sched-ex{
+    display:flex; justify-content:space-between; gap:10px; padding:7px 0;
+    border-top:1px solid var(--line); font-size:13px;
+  }
+  .sched-ex:first-child{ border-top:none; }
+  .sched-ex-name{ flex:1; }
+  .sched-ex-hint{ color:var(--chalk-dimmer); font-size:11.5px; }
+  .sched-ex-target{ color:var(--chalk-dim); font-family:var(--font-mono); white-space:nowrap; font-size:12.5px; }
+  .sched-rest{ color:var(--chalk-dim); font-size:13.5px; margin-top:10px; }
+
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:12px; color:var(--chalk-dim); margin-bottom:5px; }
+  .field-hint{ font-size:11px; color:var(--chalk-dimmer); margin-top:4px; }
+  .field input[type="date"], .field select{
+    width:100%; background:var(--paper); border:1px solid var(--line); color:var(--chalk);
+    padding:10px 12px; border-radius:12px; font-size:14.5px; font-family:inherit;
+  }
+
+  #log-day-info{ margin-bottom:12px; }
+
+  .ex-card{ background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:10px; }
+  .ex-name{ font-weight:700; font-size:14px; }
+  .ex-unit{ color:var(--chalk-dimmer); font-weight:400; font-size:11.5px; margin-right:6px; }
+  .ex-hint{ color:var(--chalk-dimmer); font-size:11.5px; margin-top:2px; }
+  .sets-grid{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .set-box{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:60px; }
+  .set-label{ font-size:10.5px; color:var(--chalk-dimmer); }
+  .set-input{
+    width:54px; text-align:center; direction:ltr;
+    background:var(--paper-2); border:1px solid var(--line); color:var(--chalk);
+    border-radius:10px; padding:8px 2px; font-size:15px; font-family:var(--font-mono);
+  }
+  .set-target{ font-size:10px; color:var(--chalk-dimmer); font-family:var(--font-mono); }
+
+  .rest-check-label{
+    display:flex; align-items:center; gap:10px; background:var(--paper);
+    border:1px solid var(--line); padding:14px; border-radius:14px; font-size:13.5px;
+  }
+  .rest-check-label input{ width:18px; height:18px; }
+  .rest-msg{ color:var(--chalk-dim); text-align:center; padding:22px 10px; font-size:13.5px; background:var(--paper); border:1px solid var(--line); border-radius:14px; }
+
+  #log-notes{
+    width:100%; background:var(--paper); border:1px solid var(--line); color:var(--chalk);
+    border-radius:12px; padding:11px; font-size:13.5px; font-family:inherit;
+    min-height:64px; resize:vertical; margin:12px 0; direction:rtl;
+  }
+  .save-btn{
+    width:100%; background:var(--chalk); color:#17171b; border:none; padding:14px;
+    border-radius:14px; font-size:14.5px; font-weight:800; font-family:inherit; cursor:pointer;
+  }
+  .save-btn:active{ opacity:.8; }
+  #log-status{ text-align:center; font-size:12.5px; color:var(--good); height:18px; margin-top:8px; opacity:0; }
+  #log-status.visible{ opacity:1; }
+
+  .history-summary{ text-align:center; color:var(--chalk-dimmer); font-size:11.5px; margin-bottom:12px; }
+  .history-card{ background:var(--paper); border:1px solid var(--line); border-right:4px solid var(--accent,#555); border-radius:14px; margin-bottom:10px; overflow:hidden; }
+  .history-header{ display:flex; justify-content:space-between; align-items:center; padding:13px 14px; cursor:pointer; }
+  .history-date{ font-weight:700; font-size:13.5px; }
+  .history-day{ font-size:12px; color:var(--chalk-dim); margin-top:2px; }
+  .history-delete{ background:transparent; border:none; color:var(--chalk-dimmer); font-size:15px; padding:4px 8px; cursor:pointer; border-radius:8px; }
+  .history-delete.confirm{ color:#c1432c; font-size:10.5px; background:rgba(193,67,44,.15); }
+  .history-detail{ padding:0 14px 14px; border-top:1px solid var(--line); }
+  .detail-row{ display:flex; justify-content:space-between; gap:10px; font-size:12.5px; padding:6px 0; border-top:1px solid var(--line); }
+  .detail-row:first-child{ border-top:none; }
+  .detail-vals{ color:var(--chalk-dim); direction:ltr; font-family:var(--font-mono); }
+  .detail-note{ font-size:12px; color:var(--chalk-dim); padding-top:8px; }
+
+  .empty-state{ text-align:center; color:var(--chalk-dim); padding:40px 16px; font-size:13.5px; }
+  .reset-btn{
+    display:block; margin:18px auto 0; background:transparent; border:none;
+    color:var(--chalk-dimmer); font-size:11.5px; padding:8px; cursor:pointer;
+  }
+  .reset-btn.confirm{ color:#c1432c; }
+
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{
+    outline:2px solid #4d80ab; outline-offset:2px;
+  }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="app-loading" class="loading">⏳ جارٍ تحميل بياناتك...</div>
+
+  <div id="app-main" style="display:none">
+    <header>
+      <h1>🏋️ برنامج التمارين الأسبوعي</h1>
+      <p>أسبوع واحد، موجة شدة واحدة: تحضير ← انفجار ← تعافي</p>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="schedule">📅 الجدول</button>
+      <button class="tab" data-tab="log">✏️ تسجيل اليوم</button>
+      <button class="tab" data-tab="history">📊 السجل</button>
+    </nav>
+
+    <main>
+      <section id="tab-schedule" class="tab-content active">
+        <div id="schedule-list"></div>
+      </section>
+
+      <section id="tab-log" class="tab-content">
+        <div class="field">
+          <label for="log-date">التاريخ</label>
+          <input type="date" id="log-date">
+        </div>
+        <div class="field">
+          <label for="log-day-override">يوم البرنامج</label>
+          <select id="log-day-override"></select>
+          <div class="field-hint">يُحدَّد تلقائياً حسب التاريخ، وتقدر تغيّره لو سجّلت يوم بتأخير.</div>
+        </div>
+
+        <div id="log-day-info"></div>
+        <div id="log-exercises"></div>
+        <textarea id="log-notes" placeholder="ملاحظات (اختياري): طاقتك، صعوبة التمرين، أي شيء تريد تذكّره..."></textarea>
+        <button id="log-save-btn" class="save-btn">💾 حفظ التسجيل</button>
+        <div id="log-status"></div>
+      </section>
+
+      <section id="tab-history" class="tab-content">
+        <div id="history-list"></div>
+        <button id="reset-all-btn" class="reset-btn">🗑 حذف كل البيانات المسجلة</button>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+// ---------- Program data ----------
+const PROGRAM = [
+  { key:'sat', weekday:6, name:'السبت', title:'مهارة الهاندستاند وقوة الأكتاف (دفع فقط)',
+    note:'هنا عضلات الظهر والبايسبس في راحة تامة، لن تجهدها أبداً لكي تكون جاهزة للانفجار غداً.',
+    type:'workout', exercises:[
+      { id:'sat_hs', name:'توازن هاندستاند ضد الحائط', hint:'محاولات وتقنية حرة', unit:'دقيقة', sets:1, target:['15'] },
+      { id:'sat_pike', name:'ضغط بايك (Pike Push-ups)', hint:'لقوة الكتف المساعد في الهاندستاند', unit:'تكرار', sets:3, target:['7','7','7'] },
+      { id:'sat_tuck', name:'ثبات أعلى المتوازي (Tuck Support Hold)', unit:'ثانية', sets:3, target:['30-45','30-45','30-45'] },
+    ]},
+  { key:'sun', weekday:0, name:'الأحد', title:'علوي (تفجير السحب والعقلة الانفجارية)',
+    note:'ندخل هذه الحصة وظهرك وجهازك العصبي في قمة الراحة (بعد راحة الجمعة والسبت من السحب).',
+    type:'workout', exercises:[
+      { id:'sun_explosive', name:'عقلة انفجارية', hint:'سحب سريع وصاروخي للبطن/الصدر', unit:'تكرار', sets:4, target:['3','3','3','3'] },
+      { id:'sun_pullup', name:'عقلة عادية', hint:'حتى الفشل العضلي', unit:'تكرار', sets:3, target:['أقصى','أقصى','أقصى'] },
+      { id:'sun_dips', name:'متوازي (Dips)', unit:'تكرار', sets:3, target:['6','6','6'] },
+      { id:'sun_aus', name:'عقلة أسترالية مائلة', unit:'تكرار', sets:3, target:['10','10','10'] },
+      { id:'sun_pushup', name:'ضغط عادي', unit:'تكرار', sets:3, target:['15','15','15'] },
+    ]},
+  { key:'mon', weekday:1, name:'الإثنين', title:'سفلي + بطن + مهارة الهاندستاند ضد الحائط',
+    type:'workout', exercises:[
+      { id:'mon_hs', name:'ثبات هاندستاند ضد الحائط', unit:'ثانية', sets:5, target:['45','45','45','45','45'] },
+      { id:'mon_squat', name:'سكوات (قرفصاء)', unit:'تكرار', sets:4, target:['20','20','20','20'] },
+      { id:'mon_lunge', name:'لانجز (طاعن)', hint:'لكل رجل', unit:'تكرار', sets:3, target:['15','15','15'] },
+      { id:'mon_plank', name:'بلانك (Plank)', unit:'ثانية', sets:3, target:['60','60','80'] },
+      { id:'mon_legraise', name:'رفع الأرجل', unit:'تكرار', sets:3, target:['15','15','15'] },
+    ]},
+  { key:'tue', weekday:2, name:'الثلاثاء', title:'راحة نشطة (مشي، إطالات)', type:'active_rest' },
+  { key:'wed', weekday:3, name:'الأربعاء', title:'علوي (تركيز ضغط وديبس - دفع وقوة ترايسبس)',
+    type:'workout', exercises:[
+      { id:'wed_dips', name:'متوازي (Dips)', unit:'تكرار', sets:4, target:['7','7','7','7'] },
+      { id:'wed_pushup', name:'ضغط عادي', unit:'تكرار', sets:4, target:['15-16','15-16','15-16','15-16'] },
+      { id:'wed_chinup', name:'عقلة معكوسة (Chin-ups)', hint:'سحب خفيف للحفاظ على الحجم', unit:'تكرار', sets:3, target:['3-4','3-4','3-4'] },
+      { id:'wed_diamond', name:'ضغط ألماس (Diamond)', unit:'تكرار', sets:3, target:['9','9','9'] },
+    ]},
+  { key:'thu', weekday:4, name:'الخميس', title:'سفلي + بطن + مهارة الهاندستاند ضد الحائط',
+    note:'تكرار كامل لتمارين يوم الإثنين بنفس الجولات والتكرارات.',
+    type:'workout', exercises:[
+      { id:'thu_hs', name:'ثبات هاندستاند ضد الحائط', unit:'ثانية', sets:5, target:['45','45','45','45','45'] },
+      { id:'thu_squat', name:'سكوات (قرفصاء)', unit:'تكرار', sets:4, target:['20','20','20','20'] },
+      { id:'thu_lunge', name:'لانجز (طاعن)', hint:'لكل رجل', unit:'تكرار', sets:3, target:['15','15','15'] },
+      { id:'thu_plank', name:'بلانك (Plank)', unit:'ثانية', sets:3, target:['60','60','80'] },
+      { id:'thu_legraise', name:'رفع الأرجل', unit:'تكرار', sets:3, target:['15','15','15'] },
+    ]},
+  { key:'fri', weekday:5, name:'الجمعة', title:'راحة تامة واستشفاء عضلي', type:'full_rest' },
+];
+
+const DAY_META = {
+  sat:{ badge:'دفع ومهارة',    color:'#4d80ab', intensity:2 },
+  sun:{ badge:'سحب انفجاري',   color:'#c1432c', intensity:5 },
+  mon:{ badge:'سفلي وبطن',     color:'#6f9159', intensity:4 },
+  tue:{ badge:'راحة نشطة',     color:'#b58a3d', intensity:1 },
+  wed:{ badge:'دفع وترايسبس',  color:'#a56430', intensity:3 },
+  thu:{ badge:'سفلي وبطن',     color:'#6f9159', intensity:4 },
+  fri:{ badge:'راحة تامة',     color:'#6b6870', intensity:0 },
+};
+
+const EXERCISE_BY_ID = {};
+PROGRAM.forEach(day => { if (day.exercises) day.exercises.forEach(ex => EXERCISE_BY_ID[ex.id] = ex); });
+
+let sessionsCache = {};
+
+// ---------- Date helpers ----------
+function localDateStr(d){
+  d = d || new Date();
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return y + '-' + m + '-' + day;
+}
+function parseLocalDate(dateStr){
+  const parts = dateStr.split('-').map(Number);
+  return new Date(parts[0], parts[1]-1, parts[2]);
+}
+function findProgramDay(dateStr){
+  const wd = parseLocalDate(dateStr).getDay();
+  return PROGRAM.find(p => p.weekday === wd) || PROGRAM[0];
+}
+function formatDisplayDate(dateStr){
+  try{
+    return new Intl.DateTimeFormat('ar', { weekday:'long', day:'numeric', month:'long', year:'numeric' }).format(parseLocalDate(dateStr));
+  }catch(e){ return dateStr; }
+}
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : str;
+  return div.innerHTML;
+}
+function formatTarget(ex){
+  const unique = [...new Set(ex.target)];
+  if (unique.length === 1) return (ex.sets > 1 ? ex.sets + ' × ' : '') + unique[0] + ' ' + ex.unit;
+  return ex.target.join(' + ') + ' ' + ex.unit;
+}
+
+// ---------- Shared day-card header ----------
+function dayCardHeaderHTML(day){
+  const meta = DAY_META[day.key];
+  const dots = Array.from({length:5}, (_,i) => '<span class="dot' + (i < meta.intensity ? ' filled' : '') + '"></span>').join('');
+  return '' +
+    '<div class="day-card-header">' +
+      '<div class="day-name">' + day.name + '</div>' +
+      '<div class="day-meta">' +
+        '<span class="day-badge">' + meta.badge + '</span>' +
+        '<span class="intensity-label">شدة</span>' +
+        '<span class="intensity">' + dots + '</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="day-title">' + day.title + '</div>' +
+    (day.note ? '<div class="day-note">' + day.note + '</div>' : '');
+}
+
+// ---------- Schedule tab ----------
+function renderSchedule(){
+  const html = PROGRAM.map(day => {
+    const meta = DAY_META[day.key];
+    let body;
+    if (day.type === 'workout'){
+      body = '<div class="sched-body">' + day.exercises.map(ex =>
+        '<div class="sched-ex">' +
+          '<span class="sched-ex-name">' + ex.name + (ex.hint ? '<span class="sched-ex-hint"> — ' + ex.hint + '</span>' : '') + '</span>' +
+          '<span class="sched-ex-target">' + formatTarget(ex) + '</span>' +
+        '</div>'
+      ).join('') + '</div>';
+    } else if (day.type === 'active_rest'){
+      body = '<div class="sched-rest">🚶 مشي خفيف وإطالات لتسريع التعافي.</div>';
+    } else {
+      body = '<div class="sched-rest">🛌 راحة كاملة — بدون تمارين. النوم والتغذية أولوية اليوم.</div>';
+    }
+    return '<div class="day-card" style="--accent:' + meta.color + '">' + dayCardHeaderHTML(day) + body + '</div>';
+  }).join('');
+  document.getElementById('schedule-list').innerHTML = html;
+}
+
+// ---------- Log tab ----------
+function renderDayInfo(day){
+  document.getElementById('log-day-info').innerHTML =
+    '<div class="day-card" style="--accent:' + DAY_META[day.key].color + '">' + dayCardHeaderHTML(day) + '</div>';
+}
+
+function renderExerciseInputCard(ex, savedVals){
+  const setsHtml = ex.target.map((t, i) => {
+    const val = (savedVals && savedVals[i] !== undefined && savedVals[i] !== null) ? savedVals[i] : '';
+    return '' +
+      '<div class="set-box">' +
+        '<span class="set-label">جولة ' + (i+1) + '</span>' +
+        '<input type="number" inputmode="decimal" min="0" class="set-input" data-ex="' + ex.id + '" data-set="' + i + '" value="' + escapeHtml(String(val)) + '">' +
+        '<span class="set-target">هدف ' + t + '</span>' +
+      '</div>';
+  }).join('');
+  return '' +
+    '<div class="ex-card">' +
+      '<div class="ex-name">' + ex.name + '<span class="ex-unit">' + ex.unit + '</span></div>' +
+      (ex.hint ? '<div class="ex-hint">' + ex.hint + '</div>' : '') +
+      '<div class="sets-grid">' + setsHtml + '</div>' +
+    '</div>';
+}
+
+function renderExercisesForLog(day, dateStr){
+  const container = document.getElementById('log-exercises');
+  const saved = (sessionsCache[dateStr] && sessionsCache[dateStr].dayKey === day.key) ? sessionsCache[dateStr] : null;
+
+  if (day.type === 'workout'){
+    container.innerHTML = day.exercises.map(ex => renderExerciseInputCard(ex, saved && saved.exercises ? saved.exercises[ex.id] : null)).join('');
+  } else if (day.type === 'active_rest'){
+    const checked = (saved && saved.restDone) ? 'checked' : '';
+    container.innerHTML = '<label class="rest-check-label"><input type="checkbox" id="log-rest-check" ' + checked + '> قمت بالمشي أو الإطالة اليوم</label>';
+  } else {
+    container.innerHTML = '<div class="rest-msg">🛌 يوم راحة تامة — لا تمارين. ركّز على النوم والتغذية والتعافي.</div>';
+  }
+  document.getElementById('log-notes').value = (saved && saved.note) || '';
+}
+
+function renderLogForDate(dayManuallyChanged){
+  const dateStr = document.getElementById('log-date').value;
+  const auto = findProgramDay(dateStr);
+  const sel = document.getElementById('log-day-override');
+
+  if (sel.options.length === 0){
+    PROGRAM.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.key;
+      opt.textContent = p.name;
+      sel.appendChild(opt);
+    });
+  }
+  if (!dayManuallyChanged){
+    const saved = sessionsCache[dateStr];
+    sel.value = saved ? saved.dayKey : auto.key;
+  }
+
+  const day = PROGRAM.find(p => p.key === sel.value) || auto;
+  renderDayInfo(day);
+  renderExercisesForLog(day, dateStr);
+}
+
+let statusTimeout;
+function showStatus(msg){
+  const el = document.getElementById('log-status');
+  el.textContent = msg;
+  el.classList.add('visible');
+  clearTimeout(statusTimeout);
+  statusTimeout = setTimeout(() => el.classList.remove('visible'), 2500);
+}
+
+async function saveCurrentSession(){
+  const dateStr = document.getElementById('log-date').value;
+  const dayKey = document.getElementById('log-day-override').value;
+  const day = PROGRAM.find(p => p.key === dayKey);
+  const session = { dayKey: day.key, dayLabel: day.name, type: day.type, savedAt: new Date().toISOString() };
+
+  if (day.type === 'workout'){
+    const exercises = {};
+    document.querySelectorAll('#log-exercises .set-input').forEach(input => {
+      const exId = input.dataset.ex, setIdx = parseInt(input.dataset.set, 10);
+      if (!exercises[exId]) exercises[exId] = [];
+      exercises[exId][setIdx] = input.value;
+    });
+    session.exercises = exercises;
+  } else if (day.type === 'active_rest'){
+    const cb = document.getElementById('log-rest-check');
+    session.restDone = cb ? cb.checked : false;
+  }
+  session.note = document.getElementById('log-notes').value;
+
+  sessionsCache[dateStr] = session;
+
+  try{
+    const result = await window.storage.set('workout-sessions', JSON.stringify(sessionsCache));
+    if (!result) throw new Error('save returned null');
+    showStatus('✅ تم الحفظ بنجاح');
+    renderHistory();
+  }catch(e){
+    showStatus('⚠️ حدث خطأ أثناء الحفظ، حاول مرة أخرى');
+    console.error('save failed', e);
+  }
+}
+
+// ---------- History tab ----------
+function renderHistoryDetail(s){
+  if (s.type !== 'workout'){
+    return s.note ? '<div class="detail-note">📝 ' + escapeHtml(s.note) + '</div>' : '<div class="detail-note">لا توجد ملاحظات.</div>';
+  }
+  const rows = Object.keys(s.exercises || {}).map(exId => {
+    const ex = EXERCISE_BY_ID[exId];
+    if (!ex) return '';
+    const vals = s.exercises[exId] || [];
+    const valsStr = ex.target.map((_, i) => {
+      const v = vals[i];
+      return (v === '' || v === undefined || v === null) ? '—' : v;
+    }).join(' / ');
+    return '<div class="detail-row"><span>' + ex.name + '</span><span class="detail-vals">' + valsStr + '</span></div>';
+  }).join('');
+  const noteHtml = s.note ? '<div class="detail-note">📝 ' + escapeHtml(s.note) + '</div>' : '';
+  return rows + noteHtml;
+}
+
+function renderHistory(){
+  const listEl = document.getElementById('history-list');
+  const dates = Object.keys(sessionsCache).sort((a,b) => b.localeCompare(a));
+
+  if (dates.length === 0){
+    listEl.innerHTML = '<div class="empty-state">📭 لا توجد تسجيلات بعد.<br>ابدأ من تبويب "تسجيل اليوم".</div>';
+    return;
+  }
+
+  const summary = '<div class="history-summary">📈 ' + dates.length + ' يوم مسجل إجمالاً</div>';
+  const cards = dates.map(dateStr => {
+    const s = sessionsCache[dateStr];
+    const meta = DAY_META[s.dayKey] || { color:'#6b6870' };
+    let summaryText;
+    if (s.type === 'workout'){
+      const total = Object.keys(s.exercises || {}).length;
+      const done = Object.values(s.exercises || {}).filter(arr => (arr||[]).some(v => v !== '' && v !== undefined && v !== null)).length;
+      summaryText = done + '/' + total + ' تمارين مسجلة';
+    } else if (s.type === 'active_rest'){
+      summaryText = s.restDone ? 'راحة نشطة ✓' : 'راحة نشطة';
+    } else {
+      summaryText = 'راحة تامة';
+    }
+    return '' +
+      '<div class="history-card" style="--accent:' + meta.color + '">' +
+        '<div class="history-header" data-toggle="' + dateStr + '">' +
+          '<div>' +
+            '<div class="history-date">' + formatDisplayDate(dateStr) + '</div>' +
+            '<div class="history-day">' + s.dayLabel + ' · ' + summaryText + '</div>' +
+          '</div>' +
+          '<button class="history-delete" data-delete="' + dateStr + '">🗑</button>' +
+        '</div>' +
+        '<div class="history-detail" id="detail-' + dateStr + '" style="display:none">' + renderHistoryDetail(s) + '</div>' +
+      '</div>';
+  }).join('');
+
+  listEl.innerHTML = summary + cards;
+
+  listEl.querySelectorAll('[data-toggle]').forEach(el => {
+    el.addEventListener('click', () => {
+      const d = document.getElementById('detail-' + el.dataset.toggle);
+      d.style.display = (d.style.display === 'none') ? 'block' : 'none';
+    });
+  });
+  listEl.querySelectorAll('[data-delete]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleDeleteClick(btn.dataset.delete, btn);
+    });
+  });
+}
+
+const deleteTimers = {};
+function handleDeleteClick(dateStr, btn){
+  if (deleteTimers[dateStr]){
+    clearTimeout(deleteTimers[dateStr]);
+    delete deleteTimers[dateStr];
+    performDelete(dateStr);
+    return;
+  }
+  btn.textContent = 'تأكيد؟';
+  btn.classList.add('confirm');
+  deleteTimers[dateStr] = setTimeout(() => {
+    btn.textContent = '🗑';
+    btn.classList.remove('confirm');
+    delete deleteTimers[dateStr];
+  }, 3000);
+}
+
+async function performDelete(dateStr){
+  delete sessionsCache[dateStr];
+  try{
+    await window.storage.set('workout-sessions', JSON.stringify(sessionsCache));
+  }catch(e){ console.error('delete failed', e); }
+  renderHistory();
+  if (document.getElementById('log-date').value === dateStr) renderLogForDate(false);
+}
+
+let resetConfirmTimer = null;
+async function resetAllData(){
+  sessionsCache = {};
+  try{
+    await window.storage.set('workout-sessions', JSON.stringify({}));
+  }catch(e){ console.error('reset failed', e); }
+  renderHistory();
+  renderLogForDate(false);
+}
+
+// ---------- Tabs ----------
+function setupTabs(){
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+}
+
+// ---------- Init ----------
+async function init(){
+  try{
+    const result = await window.storage.get('workout-sessions', false);
+    sessionsCache = (result && result.value) ? JSON.parse(result.value) : {};
+  }catch(e){
+    sessionsCache = {};
+  }
+
+  document.getElementById('app-loading').style.display = 'none';
+  document.getElementById('app-main').style.display = 'block';
+
+  setupTabs();
+  renderSchedule();
+
+  const dateInput = document.getElementById('log-date');
+  dateInput.value = localDateStr();
+  dateInput.addEventListener('change', () => renderLogForDate(false));
+  document.getElementById('log-day-override').addEventListener('change', () => renderLogForDate(true));
+  document.getElementById('log-save-btn').addEventListener('click', saveCurrentSession);
+
+  document.getElementById('reset-all-btn').addEventListener('click', function(){
+    if (resetConfirmTimer){
+      clearTimeout(resetConfirmTimer);
+      resetConfirmTimer = null;
+      resetAllData();
+      this.textContent = '🗑 حذف كل البيانات المسجلة';
+      this.classList.remove('confirm');
+    } else {
+      this.textContent = 'اضغط مرة أخرى للتأكيد';
+      this.classList.add('confirm');
+      const self = this;
+      resetConfirmTimer = setTimeout(() => {
+        self.textContent = '🗑 حذف كل البيانات المسجلة';
+        self.classList.remove('confirm');
+        resetConfirmTimer = null;
+      }, 3000);
+    }
+  });
+
+  renderLogForDate(false);
+  renderHistory();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
